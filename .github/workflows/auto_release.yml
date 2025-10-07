@@ -1,0 +1,111 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'data/seitei_goroku_entries.csv'
+      - 'dictionaries/**/*'
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - run: pip install requests beautifulsoup4 lxml pykakasi
+      - run: mkdir -p data dictionaries
+
+      # schedule / manual のときだけ CSV 生成
+      - name: Run wiki_page_to_entries.py (for schedule or manual)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: python scripts/wiki_page_to_entries.py
+
+      - name: Run entries_to_ime_dicts.py
+        run: python scripts/entries_to_ime_dicts.py
+
+      # === 差分判定（Release 作成のトリガー）========================
+      # push 由来: before..after の差分で CSV の変更有無を見る
+      # schedule/manual: origin/$BR..HEAD で CSV の変更有無を見る
+      - name: Detect CSV changes
+        id: detect
+        run: |
+          set -euo pipefail
+          CSV_PATH="data/seitei_goroku_entries.csv"
+          BR="${{ github.ref_name }}"
+
+          if [ "${{ github.event_name }}" = "push" ]; then
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.event.after }}"
+            echo "Push event range: $BEFORE..$AFTER"
+            if git diff --quiet "$BEFORE" "$AFTER" -- "$CSV_PATH"; then
+              echo "CHANGED=false" >> $GITHUB_ENV
+            else
+              echo "CHANGED=true" >> $GITHUB_ENV
+              # リリースノート用の差分
+              git diff "$BEFORE" "$AFTER" -- "$CSV_PATH" > diff.txt || true
+            fi
+          else
+            git fetch --no-tags origin "$BR"
+            echo "Non-push event range: origin/$BR..HEAD"
+            if git diff --quiet "origin/$BR" "HEAD" -- "$CSV_PATH"; then
+              echo "CHANGED=false" >> $GITHUB_ENV
+            else
+              echo "CHANGED=true" >> $GITHUB_ENV
+              git diff "origin/$BR" "HEAD" -- "$CSV_PATH" > diff.txt || true
+            fi
+          fi
+
+          # 環境変数 BODY を用意（空でも可）
+          if [ -s diff.txt ]; then
+            {
+              echo "BODY<<'EOF'"
+              echo "Changes in ${CSV_PATH}:"
+              cat diff.txt
+              echo "EOF"
+            } >> $GITHUB_ENV
+          else
+            echo "BODY=Auto release (no detailed diff)" >> $GITHUB_ENV
+          fi
+
+      - name: Set tag name (JST)
+        if: env.CHANGED == 'true'
+        run: echo "TAG_NAME=v$(TZ=Asia/Tokyo date '+%Y%m%d-%H%M')" >> $GITHUB_ENV
+
+      - name: Create Release
+        if: env.CHANGED == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Release ${{ env.TAG_NAME }}
+          body: ${{ env.BODY }}
+          draft: false
+          prerelease: false
+          files: |
+            dictionaries/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # （必要なら）生成物のコミットを最後に
+      - name: Commit and push generated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: update dictionaries [bot]" || exit 0
+          git pull --rebase origin "${{ github.ref_name }}" || true
+          git push origin HEAD:"${{ github.ref_name }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
