@@ -70,7 +70,7 @@ def generate_mac_ime_dictionary(csv_path, mac_ime_path, default_pos="普通名�
                 pos = default_pos
                 rows.append([yomi, word, pos])
     with open(mac_ime_path, 'w', encoding='utf-8', newline='') as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
+        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
         writer.writerows(rows)
     print(f"[IME生成] macOS IME: {mac_ime_path}")
 

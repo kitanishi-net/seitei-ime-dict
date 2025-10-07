@@ -47,7 +47,7 @@ def extract_entries(html: str) -> list:
             parser = etree.HTMLParser()
             root = etree.fromstring(html.encode("utf-8"), parser=parser)
             xpath_nodes = root.xpath(XPATH_TARGET)
-        except (etree.XMLSyntaxError, etree.XPathEvalError):
+        except (etree.XMLSyntaxError, etree.XPathEvalError, etree.ParserError):
             xpath_nodes = []
         if xpath_nodes:
             fragment_html = etree.tostring(xpath_nodes[0], encoding="unicode")
