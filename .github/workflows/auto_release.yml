@@ -71,13 +71,13 @@ jobs:
           # 環境変数 BODY を用意（空でも可）
           if [ -s diff.txt ]; then
             {
-              echo "BODY<<'EOF'"
-              echo "Changes in ${CSV_PATH}:"
+              echo 'BODY<<EOF'              # ← クォートはここだけ。EOFはクォートしない！
+              echo "Changes in ${CSV_PATH}:");
               cat diff.txt
-              echo "EOF"
-            } >> $GITHUB_ENV
+              echo EOF                      # ← 単独行・前後に空白なし
+            } >> "$GITHUB_ENV"
           else
-            echo "BODY=Auto release (no detailed diff)" >> $GITHUB_ENV
+            echo "BODY=Auto release (no detailed diff)" >> "$GITHUB_ENV"
           fi
 
       - name: Set tag name (JST)
