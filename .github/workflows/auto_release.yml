@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  auto_release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +45,10 @@ jobs:
           set -euo pipefail
           CSV_PATH="data/seitei_goroku_entries.csv"
           BR="${{ github.ref_name }}"
+          BEFORE_REF=""
+          HEAD_REF="HEAD"
+          DIFF_TXT="diff.txt"
+          SUMMARY_TXT="summary.txt"
 
           if [ "${{ github.event_name }}" = "push" ]; then
             BEFORE="${{ github.event.before }}"
@@ -53,34 +57,50 @@ jobs:
             if [ -z "$BEFORE" ]; then BEFORE="HEAD~1"; fi
             if [ -z "$AFTER" ]; then AFTER="HEAD"; fi
             echo "Push event range: $BEFORE..$AFTER"
-            if git diff --quiet "$BEFORE" "$AFTER" -- "$CSV_PATH"; then
+            BEFORE_REF="$BEFORE"
+            HEAD_REF="$AFTER"
+            if git diff --quiet "$BEFORE_REF" "$HEAD_REF" -- "$CSV_PATH"; then
               echo "CHANGED=false" >> $GITHUB_ENV
-            else
-              echo "CHANGED=true" >> $GITHUB_ENV
-              # リリースノート用の差分
-              git diff "$BEFORE" "$AFTER" -- "$CSV_PATH" > diff.txt || true
+              echo "BODY=Auto release (no detailed diff)" >> $GITHUB_ENV
+              exit 0
             fi
           else
             git fetch --no-tags origin "$BR"
             echo "Non-push event range: origin/$BR..HEAD"
-            if git diff --quiet "origin/$BR" "HEAD" -- "$CSV_PATH"; then
+            BEFORE_REF="origin/$BR"
+            if git diff --quiet "$BEFORE_REF" "$HEAD_REF" -- "$CSV_PATH"; then
               echo "CHANGED=false" >> $GITHUB_ENV
-            else
-              echo "CHANGED=true" >> $GITHUB_ENV
-              git diff "origin/$BR" "HEAD" -- "$CSV_PATH" > diff.txt || true
+              echo "BODY=Auto release (no detailed diff)" >> $GITHUB_ENV
+              exit 0
             fi
           fi
 
-          # 環境変数 BODY を用意（空でも可）
-          if [ -s diff.txt ]; then
+          echo "CHANGED=true" >> $GITHUB_ENV
+
+          git diff "$BEFORE_REF" "$HEAD_REF" -- "$CSV_PATH" > "$DIFF_TXT" || true
+
+          if ! git show "${BEFORE_REF}:${CSV_PATH}" > before.csv 2>/dev/null; then
+            echo "Base CSV not found at ${BEFORE_REF}; assuming empty snapshot."
+            : > before.csv
+          fi
+
+          python scripts/csv_diff_summary.py before.csv "$CSV_PATH" > "$SUMMARY_TXT" || true
+
+          if [ -s "$SUMMARY_TXT" ]; then
             {
-              echo 'BODY<<EOF'              # ← クォートはここだけ。EOFはクォートしない！
+              echo 'BODY<<EOF'
+              cat "$SUMMARY_TXT"
+              echo EOF
+            } >> "$GITHUB_ENV"
+          elif [ -s "$DIFF_TXT" ]; then
+            {
+              echo 'BODY<<EOF'
               echo "Changes in ${CSV_PATH}:"
-              cat diff.txt
-              echo EOF                      # ← 単独行・前後に空白なし
+              cat "$DIFF_TXT"
+              echo EOF
             } >> "$GITHUB_ENV"
           else
-            echo "BODY=Auto release (no detailed diff)" >> "$GITHUB_ENV"
+            echo "BODY=Auto release (entries changed)" >> "$GITHUB_ENV"
           fi
 
       - name: Set tag name (JST)
@@ -103,6 +123,7 @@ jobs:
 
       # （必要なら）生成物のコミットを最後に
       - name: Commit and push generated files
+        if: ${{ env.ACT != 'true' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
