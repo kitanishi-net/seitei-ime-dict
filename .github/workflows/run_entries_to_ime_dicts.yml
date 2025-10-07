@@ -1,0 +1,24 @@
+name: Run entries_to_ime_dicts.py on CSV change
+
+on:
+  push:
+    paths:
+      - 'data/seitei_goroku_entries.csv'
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 lxml pykakasi
+
+      - name: Run entries_to_ime_dicts.py
+        run: python scripts/entries_to_ime_dicts.py
