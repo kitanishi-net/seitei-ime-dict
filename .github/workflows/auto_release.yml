@@ -49,6 +49,9 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             BEFORE="${{ github.event.before }}"
             AFTER="${{ github.event.after }}"
+            # act用: 空ならデフォルト値
+            if [ -z "$BEFORE" ]; then BEFORE="HEAD~1"; fi
+            if [ -z "$AFTER" ]; then AFTER="HEAD"; fi
             echo "Push event range: $BEFORE..$AFTER"
             if git diff --quiet "$BEFORE" "$AFTER" -- "$CSV_PATH"; then
               echo "CHANGED=false" >> $GITHUB_ENV
@@ -71,10 +74,10 @@ jobs:
           # 環境変数 BODY を用意（空でも可）
           if [ -s diff.txt ]; then
             {
-              echo "BODY<<EOF"
+              echo 'BODY<<EOF'              # ← クォートはここだけ。EOFはクォートしない！
               echo "Changes in ${CSV_PATH}:"
               cat diff.txt
-              echo "EOF"
+              echo EOF                      # ← 単独行・前後に空白なし
             } >> "$GITHUB_ENV"
           else
             echo "BODY=Auto release (no detailed diff)" >> "$GITHUB_ENV"
