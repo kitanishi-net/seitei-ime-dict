@@ -21,6 +21,8 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4 lxml pykakasi
 
+      - name: Create dictionaries directory
+        run: mkdir -p dictionaries
 
       - name: Run entries_to_ime_dicts.py
         run: python scripts/entries_to_ime_dicts.py
