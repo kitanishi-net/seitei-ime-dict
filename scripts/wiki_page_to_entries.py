@@ -47,7 +47,7 @@ def extract_entries(html: str) -> list:
             parser = etree.HTMLParser()
             root = etree.fromstring(html.encode("utf-8"), parser=parser)
             xpath_nodes = root.xpath(XPATH_TARGET)
-        except Exception:
+        except (etree.XMLSyntaxError, etree.XPathEvalError):
             xpath_nodes = []
         if xpath_nodes:
             fragment_html = etree.tostring(xpath_nodes[0], encoding="unicode")
@@ -122,7 +122,7 @@ def main():
         r = requests.get(URL, timeout=30)
         r.raise_for_status()
     except Exception as e:
-        print(f"[error] failed to fetch: {e}")
+        print(f"[error] Failed to fetch wiki page from {URL}: {e}")
         return 1
     wiki_entries = extract_entries(r.text)
     if not wiki_entries:

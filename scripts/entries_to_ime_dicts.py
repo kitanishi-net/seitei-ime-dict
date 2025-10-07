@@ -59,27 +59,19 @@ def generate_microsoft_ime_dictionary(csv_path, ime_path, default_pos="名詞", 
         f.writelines(lines)
     print(f"[IME生成] Microsoft IME: {ime_path}")
 
-def escape_csv_field(field):
-    if ',' in field or ' ' in field or '"' in field:
-        field = field.replace('"', '""')
-        return f'"{field}"'
-    return field
-
 def generate_mac_ime_dictionary(csv_path, mac_ime_path, default_pos="普通名詞"):
-    lines = []
     with open(csv_path, encoding='utf-8') as f:
         reader = csv.reader(f)
+        rows = []
         for row in reader:
             if len(row) >= 2:
                 yomi = row[1].strip()
                 word = row[0].strip()
                 pos = default_pos
-                yomi = escape_csv_field(yomi)
-                word = escape_csv_field(word)
-                line = f'{yomi},{word},{pos}\n'
-                lines.append(line)
-    with open(mac_ime_path, 'w', encoding='utf-8') as f:
-        f.writelines(lines)
+                rows.append([yomi, word, pos])
+    with open(mac_ime_path, 'w', encoding='utf-8', newline='') as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
+        writer.writerows(rows)
     print(f"[IME生成] macOS IME: {mac_ime_path}")
 
 if __name__ == "__main__":
