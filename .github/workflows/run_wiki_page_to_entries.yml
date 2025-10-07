@@ -1,4 +1,4 @@
-name: Run wiki_page_to_entries.py daily
+name: wiki page to entries and IME dicts
 
 on:
   schedule:
@@ -25,6 +25,12 @@ jobs:
 
       - name: Run wiki_page_to_entries.py
         run: python scripts/wiki_page_to_entries.py
+      
+      - name: Create dictionaries directory
+        run: mkdir -p dictionaries
+
+      - name: Run entries_to_ime_dicts.py
+        run: python scripts/entries_to_ime_dicts.py
 
       - name: Commit and push changes
         run: |
