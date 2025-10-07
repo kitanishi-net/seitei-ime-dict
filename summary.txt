@@ -1,6 +1,0 @@
-Changes in `data/seitei_goroku_entries.csv`
-
-### Updated readings (1)
-- 伊藤博文は畳の上で死にたくないと言っていた
-  - before: `いとうひろふみはたたみのうえでしにたくないといっていた`
-  - after:  `いとうひろぶみはたたみのうえでしにたくないといっていた`

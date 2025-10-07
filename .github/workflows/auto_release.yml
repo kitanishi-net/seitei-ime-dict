@@ -107,6 +107,9 @@ jobs:
         if: env.CHANGED == 'true'
         run: echo "TAG_NAME=v$(TZ=Asia/Tokyo date '+%Y%m%d-%H%M')" >> $GITHUB_ENV
 
+      - name: Cleanup temporary diff artifacts
+        run: rm -f before.csv diff.txt summary.txt
+
       - name: Create Release
         if: env.CHANGED == 'true'
         uses: softprops/action-gh-release@v2
