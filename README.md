@@ -1,0 +1,1 @@
+# seitei-ime-dict
