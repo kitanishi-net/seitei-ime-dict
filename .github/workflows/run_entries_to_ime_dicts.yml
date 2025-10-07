@@ -1,4 +1,4 @@
-name: Run entries_to_ime_dicts.py on CSV change
+name: entries to IME dicts
 
 on:
   push:
